@@ -42,6 +42,7 @@ impl Qa {
 impl App {
     pub fn qa_seed(&mut self) {
         self.loaded = false; // never persist demo data
+        self.vault.settings = crate::model::Settings::default();
         self.locked = false;
         let prod = Group {
             name: "Production".into(),
@@ -219,6 +220,20 @@ impl App {
         self.palette.open = false;
         match step {
             "interactive" => {}
+            "about" => {
+                self.dialog = Some(crate::app::Dialog::About);
+            }
+            "updatesettings" => {
+                self.active_tab = None;
+                self.page = Page::Settings;
+                self.settings_section = 8;
+            }
+            "updatenotice" => {
+                self.active_tab = None;
+                self.page = Page::Hosts;
+                #[cfg(debug_assertions)]
+                self.updater.preview_notice();
+            }
             "home" | "hosts" => {
                 self.active_tab = None;
                 self.page = Page::Hosts;

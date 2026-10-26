@@ -242,3 +242,74 @@ fn mac_staging_checks_signed_bundle_and_release_version() {
         "{error:#}"
     );
 }
+
+#[test]
+fn automatic_update_notice_can_be_dismissed_for_the_session() {
+    let mut updater = Updater::default();
+    updater
+        .tx
+        .send(Event::Checked {
+            notify: true,
+            result: Ok(Some(release("v0.2.0", false, false))),
+        })
+        .unwrap();
+    updater.poll();
+    assert_eq!(
+        updater.notice().map(|r| r.tag_name.as_str()),
+        Some("v0.2.0")
+    );
+    updater.dismiss_notice();
+    assert!(updater.notice().is_none());
+    assert!(matches!(&updater.state, State::Available(r) if r.tag_name == "v0.2.0"));
+    // A repeated result cannot reopen the dismissed notice.
+    updater
+        .tx
+        .send(Event::Checked {
+            notify: true,
+            result: Ok(Some(release("v0.2.0", false, false))),
+        })
+        .unwrap();
+    updater.poll();
+    assert!(updater.notice().is_none());
+    // A different release can still be announced.
+    updater
+        .tx
+        .send(Event::Checked {
+            notify: true,
+            result: Ok(Some(release("v0.3.0", false, false))),
+        })
+        .unwrap();
+    updater.poll();
+    assert_eq!(
+        updater.notice().map(|r| r.tag_name.as_str()),
+        Some("v0.3.0")
+    );
+}
+
+#[test]
+fn manual_checks_current_versions_and_errors_do_not_raise_notices() {
+    let mut updater = Updater::default();
+    for (notify, result) in [
+        (false, Ok(Some(release("v0.2.0", false, false)))),
+        (true, Ok(None)),
+        (true, Err("Offline".into())),
+    ] {
+        updater.tx.send(Event::Checked { result, notify }).unwrap();
+        updater.poll();
+        assert!(updater.notice().is_none());
+    }
+    assert!(matches!(&updater.state, State::Failed(message) if message == "Offline"));
+}
+
+#[test]
+fn update_check_preference_is_backward_compatible_and_preserves_opt_out() {
+    let old: crate::model::Settings = serde_json::from_str("{}").unwrap();
+    assert!(old.check_updates_on_startup);
+    let opted_out = crate::model::Settings {
+        check_updates_on_startup: false,
+        ..old
+    };
+    let json = serde_json::to_string(&opted_out).unwrap();
+    let restored: crate::model::Settings = serde_json::from_str(&json).unwrap();
+    assert!(!restored.check_updates_on_startup);
+}

@@ -236,6 +236,7 @@ pub struct EditWatch {
 pub struct App {
     pub rt: tokio::runtime::Runtime,
     pub updater: crate::updates::Updater,
+    pub update_check_started: bool,
     pub menu_actions: Vec<String>,
     pub clipboard_actions: Vec<String>,
     pub edit_focus: Option<egui::Id>,
@@ -315,6 +316,7 @@ impl App {
         let mut app = Self {
             rt,
             updater: crate::updates::Updater::default(),
+            update_check_started: false,
             menu_actions: vec![],
             clipboard_actions: vec![],
             edit_focus: None,
@@ -1407,6 +1409,12 @@ impl eframe::App for App {
             self.lock_screen(ui);
             return;
         }
+        if !self.update_check_started && self.qa.is_none() && self.loaded {
+            self.update_check_started = true;
+            if self.vault.settings.check_updates_on_startup {
+                self.updater.check_automatically(self.rt.handle(), &ctx);
+            }
+        }
         self.global_shortcuts(&ctx);
         self.snippet_hotkeys(&ctx);
         self.poll_edit_watches();
@@ -1431,6 +1439,7 @@ impl eframe::App for App {
                 }
             }
         }
+        self.draw_update_notice(&ctx);
         self.draw_prompts(&ctx);
         self.draw_dialog(&ctx);
         self.draw_palette(&ctx);

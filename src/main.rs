@@ -49,7 +49,7 @@ fn main() -> eframe::Result<()> {
     }
     let options = eframe::NativeOptions {
         viewport,
-        persist_window: true,
+        persist_window: std::env::var_os("FERRUM_QA").is_none(),
         ..Default::default()
     };
 

@@ -6,7 +6,7 @@ use super::{card_frame, primary_button};
 use crate::app::{App, Dialog};
 use crate::model::*;
 
-const SECTIONS: [&str; 8] = [
+const SECTIONS: [&str; 9] = [
     "Appearance",
     "Terminal",
     "Connections",
@@ -15,6 +15,7 @@ const SECTIONS: [&str; 8] = [
     "Sync & Backup",
     "Integrations",
     "AI assistant",
+    "Updates",
 ];
 
 impl App {
@@ -23,7 +24,7 @@ impl App {
         let before = self.vault.settings.clone();
         ui.label(RichText::new("Settings").size(22.0).strong());
         ui.add_space(10.0);
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             for (i, s) in SECTIONS.iter().enumerate() {
                 if ui
                     .selectable_label(self.settings_section == i as u8, *s)
@@ -46,7 +47,8 @@ impl App {
                     4 => self.settings_security(ui),
                     5 => self.settings_sync(ui),
                     6 => self.settings_integrations(ui),
-                    _ => self.settings_ai(ui),
+                    7 => self.settings_ai(ui),
+                    _ => self.settings_updates(ui),
                 }
                 ui.add_space(20.0);
                 ui.label(
@@ -63,6 +65,24 @@ impl App {
             crate::store::touch_settings(&mut self.vault);
             self.mark_dirty();
         }
+    }
+
+    fn settings_updates(&mut self, ui: &mut egui::Ui) {
+        let pal = self.pal();
+        card_frame(pal).show(ui, |ui| {
+            ui.label(RichText::new("Software updates").strong());
+            if ui.checkbox(&mut self.vault.settings.check_updates_on_startup,
+                "Check for updates on startup").changed()
+                && !self.vault.settings.check_updates_on_startup {
+                self.updater.dismiss_notice();
+            }
+            ui.label(RichText::new("A new release shows a notice you can close. Downloads and installation always wait for you.").color(pal.text_dim));
+            ui.add_space(8.0);
+            if ui.button("Check for updates").clicked() {
+                self.dialog = Some(Dialog::Updates);
+                self.updater.check(self.rt.handle(), ui.ctx());
+            }
+        });
     }
 
     fn settings_appearance(&mut self, ui: &mut egui::Ui) {

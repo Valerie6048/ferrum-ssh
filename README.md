@@ -1,6 +1,25 @@
 # Ferrum
 
-A native, cross-platform SSH client written in Rust. It runs natively on macOS, Windows and Linux from a single codebase (egui + russh + alacritty_terminal).
+An open-source SSH and SFTP client for macOS, Windows, and Linux, built in Rust. Free to use and modify under the [MIT license](LICENSE).
+
+[Releases](https://github.com/fikrifirmanf/ferrum-ssh/releases) · [Report an issue](https://github.com/fikrifirmanf/ferrum-ssh/issues) · [Build from source](#build)
+
+## Screenshots
+
+Captured from the running app with demo hosts. No saved connections or credentials appear in these images.
+
+![Ferrum host library in the dark theme, with grouped servers and OS icons](docs/screenshots/hosts-dark.png)
+
+| Host editor | Light theme |
+| --- | --- |
+| ![SSH host editor with password visibility and connection testing](docs/screenshots/host-editor.png) | ![Ferrum host library in the light theme](docs/screenshots/hosts-light.png) |
+
+<details>
+<summary>About Ferrum</summary>
+
+![About Ferrum, including version, author, MIT license, and source links](docs/screenshots/about.png)
+
+</details>
 
 ## Features
 
@@ -54,13 +73,17 @@ This mode adds demo data and never saves the vault. The steps `ssh`, `accept`, `
 
 ## Credits
 
+Ferrum is created by [Fikri Firman Fadilah](https://github.com/fikrifirmanf) and released under the [MIT license](LICENSE). It uses [egui](https://github.com/emilk/egui) for the interface, [russh](https://github.com/warp-tech/russh) for SSH, and [alacritty_terminal](https://github.com/alacritty/alacritty) for terminal emulation.
+
 Icons are [Phosphor](https://phosphoricons.com) (MIT, `assets/fonts/PHOSPHOR-LICENSE.txt`). The UI palette is checked in tests for WCAG AA contrast in all three themes.
 
 ## Menus and updates
 
 On macOS, File, Edit, View and Help live in the system menu bar. Windows and Linux show the same menus inside the window. Use Edit for Cut, Copy, Paste and Select all. Password inputs include a show/hide button.
 
-Help → Ferrum help opens this page. Help → About Ferrum shows the installed version. Help → Check for updates checks published GitHub release tags. Preview releases are optional. For a private repository, Ferrum uses an existing GitHub CLI login, `GH_TOKEN` / `GITHUB_TOKEN`, or a token entered in the update dialog. Tokens entered there stay in memory until the app closes.
+Help → Ferrum help opens this page. Help → About Ferrum shows the installed version, author, MIT license, and source code links.
+
+Ferrum checks public GitHub releases once after startup. When a newer release is available, a small notice offers **View update**, **Later**, and a close button. Dismissing it keeps the current session running and hides that release notice until the next launch. Downloads and installation always require your action. Disable startup checks in **Settings → Updates**; **Help → Check for updates** remains available for manual checks. Startup checks use the public release API without accessing saved GitHub credentials. Preview releases are optional for manual checks. For a private repository, Ferrum uses an existing GitHub CLI login, `GH_TOKEN` / `GITHUB_TOKEN`, or a token entered in the update dialog. Tokens entered there stay in memory until the app closes.
 
 The updater selects a package for the current OS and CPU, checks its size and GitHub SHA-256 digest, then stages it before offering **Install and restart**. macOS additionally checks the app signature, bundle identifier and version. Restart saves the vault and closes terminal sessions. The old build is kept beside the installation as a hidden recovery copy. Installation errors leave a log in the `ferrum-update-*` temporary directory. AppImage and read-only installations can use the GitHub release page to install manually.
 
@@ -83,7 +106,7 @@ git push origin v0.1.1
 
 The publisher checks that the GitHub tag points to the exact commit CircleCI built. It requires every installer, verifies the uploaded digests, and publishes only after all files are present. Failed uploads leave a draft for a retry. Published releases are never overwritten; an identical retry succeeds without changes. Tags such as `v0.2.0-beta.1` are published as preview releases.
 
-The current branch pipeline cannot acquire a new publishing job midway through its run. Automatic publishing starts with a tag pipeline using this updated configuration.
+Automatic publishing runs only for version tags. Branch pipelines build and test the app without publishing a release.
 
 To test the release helper locally, run `python3 -m unittest discover -s packaging -p 'test_*.py' -v`.
 

@@ -458,6 +458,7 @@ pub enum AiProvider {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(default)]
 pub struct Settings {
+    pub check_updates_on_startup: bool,
     pub ui_theme: UiTheme,
     pub accent: [u8; 3],
     pub terminal_scheme: String,
@@ -529,6 +530,7 @@ impl Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            check_updates_on_startup: true,
             ui_theme: UiTheme::Dark,
             accent: [99, 132, 255],
             terminal_scheme: "Ferrum Night".into(),

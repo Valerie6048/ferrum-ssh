@@ -145,3 +145,57 @@ impl App {
         close
     }
 }
+
+impl App {
+    /// An optional notice: opening it never starts a download or interrupts a form.
+    pub fn draw_update_notice(&mut self, ctx: &egui::Context) {
+        if self.locked
+            || self.dialog.is_some()
+            || self.editor.is_some()
+            || !self.prompts.is_empty()
+            || self.palette.open
+            || !self.vault.settings.check_updates_on_startup
+        {
+            return;
+        }
+        let Some(release) = self.updater.notice() else {
+            return;
+        };
+        let tag = release.tag_name.clone();
+        let pal = self.pal();
+        let mut open = true;
+        let mut review = false;
+        let mut later = false;
+        egui::Window::new("Update available")
+            .id(egui::Id::unique("update-notice"))
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(336.0)
+            .anchor(egui::Align2::RIGHT_TOP, egui::vec2(-24.0, 76.0))
+            .frame(
+                egui::Frame::window(&ctx.global_style())
+                    .fill(pal.panel)
+                    .inner_margin(20),
+            )
+            .show(ctx, |ui| {
+                ui.label(
+                    egui::RichText::new(format!("Ferrum {tag} is ready to download")).strong(),
+                );
+                ui.label(
+                    "Review the release when it suits you. Your current session can keep running.",
+                );
+                ui.add_space(12.0);
+                ui.horizontal(|ui| {
+                    review = ui.add(primary_button("View update", pal)).clicked();
+                    later = ui.button("Later").clicked();
+                });
+            });
+        if !open || later || review || ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+            self.updater.dismiss_notice();
+        }
+        if review {
+            self.dialog = Some(crate::app::Dialog::Updates);
+        }
+    }
+}

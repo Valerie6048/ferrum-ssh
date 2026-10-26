@@ -47,7 +47,10 @@ pub enum State {
 }
 
 enum Event {
-    Checked(Result<Option<Release>, String>),
+    Checked {
+        result: Result<Option<Release>, String>,
+        notify: bool,
+    },
     Progress(u64, u64),
     Prepared(Result<Prepared, String>),
 }
@@ -56,6 +59,8 @@ pub struct Updater {
     pub state: State,
     pub token: String,
     pub previews: bool,
+    notice_pending: bool,
+    dismissed_tag: Option<String>,
     tx: Sender<Event>,
     rx: Receiver<Event>,
 }
@@ -66,6 +71,8 @@ impl Default for Updater {
             state: State::Idle,
             token: String::new(),
             previews: false,
+            notice_pending: false,
+            dismissed_tag: None,
             tx,
             rx,
         }
@@ -78,18 +85,53 @@ impl Updater {
     pub fn poll(&mut self) {
         while let Ok(event) = self.rx.try_recv() {
             self.state = match event {
-                Event::Checked(Ok(Some(release))) => State::Available(release),
-                Event::Checked(Ok(None)) => State::Current(format!(
-                    "Ferrum {} is up to date for this release channel.",
-                    env!("CARGO_PKG_VERSION")
-                )),
-                Event::Checked(Err(error)) | Event::Prepared(Err(error)) => State::Failed(error),
+                Event::Checked { result, notify } => {
+                    self.notice_pending = false;
+                    match result {
+                        Ok(Some(release)) => {
+                            self.notice_pending =
+                                notify && self.dismissed_tag.as_deref() != Some(&release.tag_name);
+                            State::Available(release)
+                        }
+                        Ok(None) => State::Current(format!(
+                            "Ferrum {} is up to date for this release channel.",
+                            env!("CARGO_PKG_VERSION")
+                        )),
+                        Err(error) => State::Failed(error),
+                    }
+                }
+                Event::Prepared(Err(error)) => State::Failed(error),
                 Event::Progress(done, total) => State::Downloading(done, total),
                 Event::Prepared(Ok(prepared)) => State::Ready(prepared),
             };
         }
     }
+    pub fn notice(&self) -> Option<&Release> {
+        if !self.notice_pending {
+            return None;
+        }
+        match &self.state {
+            State::Available(release) => Some(release),
+            _ => None,
+        }
+    }
+
+    pub fn dismiss_notice(&mut self) {
+        if let State::Available(release) = &self.state {
+            self.dismissed_tag = Some(release.tag_name.clone());
+        }
+        self.notice_pending = false;
+    }
+
+    pub fn check_automatically(&mut self, rt: &tokio::runtime::Handle, ctx: &egui::Context) {
+        self.start_check(rt, ctx, true);
+    }
+
     pub fn check(&mut self, rt: &tokio::runtime::Handle, ctx: &egui::Context) {
+        self.start_check(rt, ctx, false);
+    }
+
+    fn start_check(&mut self, rt: &tokio::runtime::Handle, ctx: &egui::Context, notify: bool) {
         if self.busy() {
             return;
         }
@@ -103,7 +145,8 @@ impl Updater {
         rt.spawn(async move {
             let result = async {
                 let client = client()?;
-                let token = resolve_token(token).await;
+                // Startup checks use the public release API without accessing credentials.
+                let token = if notify { String::new() } else { resolve_token(token).await };
                 let response = authorized(client.get(format!("https://api.github.com/repos/{REPO}/releases?per_page=100")), &token)
                     .send().await.context("Could not reach GitHub. Check your connection.")?;
                 if response.status() == reqwest::StatusCode::NOT_FOUND {
@@ -115,7 +158,7 @@ impl Updater {
                 let releases: Vec<Release> = response.error_for_status()?.json().await?;
                 select_release(releases, env!("CARGO_PKG_VERSION"), previews)
             }.await.map_err(|e: anyhow::Error| format!("{e:#}"));
-            let _ = tx.send(Event::Checked(result));
+            let _ = tx.send(Event::Checked { result, notify });
             ctx.request_repaint();
         });
     }
@@ -311,3 +354,21 @@ async fn stage_release(
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(debug_assertions)]
+impl Updater {
+    pub fn preview_notice(&mut self) {
+        let _ = self.tx.send(Event::Checked {
+            notify: true,
+            result: Ok(Some(Release {
+                tag_name: "v0.2.0".into(),
+                // unslop-ignore NO_SQL_INTERPOLATION -- Plain release-note text in a debug fixture; no SQL is executed.
+                body: Some("Demo update for visual verification.".into()),
+                draft: false,
+                prerelease: false,
+                assets: vec![],
+            })),
+        });
+        self.poll();
+    }
+}

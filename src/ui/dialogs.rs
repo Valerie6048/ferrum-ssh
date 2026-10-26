@@ -780,11 +780,47 @@ impl App {
                 close = self.update_dialog(ui);
             }
             Dialog::About => {
-                title(ui, "Ferrum");
-                ui.label(format!("Version {}", env!("CARGO_PKG_VERSION")));
-                ui.label(RichText::new(env!("CARGO_PKG_DESCRIPTION")).color(pal.text_dim));
-                ui.hyperlink_to("Ferrum help", crate::ui::menus::HELP_URL);
-                ui.hyperlink_to("GitHub releases", crate::updates::RELEASES_URL);
+                ui.horizontal(|ui| {
+                    super::logo_mark(ui, 52.0, pal.accent);
+                    ui.vertical(|ui| {
+                        ui.label(RichText::new("Ferrum").size(28.0).strong());
+                        ui.label(
+                            RichText::new(format!("Version {}", env!("CARGO_PKG_VERSION")))
+                                .color(pal.text_dim),
+                        );
+                    });
+                });
+                ui.add_space(16.0);
+                ui.label(RichText::new("Open-source SSH client").size(18.0).strong());
+                ui.label("Connect to servers, transfer files, and work in your terminal across macOS, Windows, and Linux.");
+                ui.add_space(12.0);
+                ui.label(
+                    RichText::new("Free to use, study, modify, and share under the MIT license.")
+                        .color(pal.text_dim),
+                );
+                ui.label(
+                    RichText::new(
+                        "Created by Fikri Firman Fadilah. Built with Rust, egui, and russh.",
+                    )
+                    .color(pal.text_dim),
+                );
+                ui.add_space(12.0);
+                ui.horizontal_wrapped(|ui| {
+                    ui.hyperlink_to("View source", "https://github.com/fikrifirmanf/ferrum-ssh");
+                    ui.hyperlink_to(
+                        "MIT license",
+                        "https://github.com/fikrifirmanf/ferrum-ssh/blob/main/LICENSE",
+                    );
+                    ui.hyperlink_to(
+                        "Credits",
+                        "https://github.com/fikrifirmanf/ferrum-ssh#credits",
+                    );
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.hyperlink_to("Help", crate::ui::menus::HELP_URL);
+                    ui.hyperlink_to("Releases", crate::updates::RELEASES_URL);
+                });
                 ui.add_space(12.0);
                 if ui.add(primary_button("Close", pal)).clicked() {
                     close = true;
