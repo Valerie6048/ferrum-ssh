@@ -1,13 +1,11 @@
-name: Release
+name: Manual packaging
 
-# Push a tag such as v0.1.0 to build installers for every platform and publish them.
+# CircleCI publishes releases. This workflow is a manual packaging fallback.
 on:
-  push:
-    tags: ["v*"]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   macos:
@@ -69,32 +67,3 @@ jobs:
           path: |
             dist/*.zip
             dist/*-setup.exe
-
-  publish:
-    needs: [macos, linux, windows]
-    if: startsWith(github.ref, 'refs/tags/')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Verify release version
-        run: |
-          python3 - <<'PYVERSION'
-          import os, tomllib
-          version = tomllib.load(open("Cargo.toml", "rb"))["package"]["version"]
-          assert os.environ["GITHUB_REF_NAME"] == f"v{version}", "Release tag must match Cargo.toml version"
-          PYVERSION
-      - uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-          merge-multiple: true
-      - name: Checksums
-        working-directory: artifacts
-        run: sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
-      - name: Publish release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release create "${{ github.ref_name }}" artifacts/* \
-            --repo "${{ github.repository }}" \
-            --title "Ferrum ${{ github.ref_name }}" \
-            --generate-notes

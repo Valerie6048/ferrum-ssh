@@ -41,6 +41,10 @@ jobs:
       - save_cache:
           key: "rust-v1-linux-{{ checksum \"Cargo.lock\" }}"
           paths: [~/.cargo/registry, ~/.cargo/git, target]
+      - persist_to_workspace:
+          root: dist
+          paths:
+            - "Ferrum-*-linux-x86_64.tar.gz"
       - store_artifacts:
           path: dist
           destination: linux-x86_64
@@ -66,6 +70,10 @@ jobs:
       - save_cache:
           key: "rust-v1-macos-<< parameters.target >>-{{ checksum \"Cargo.lock\" }}"
           paths: [~/.cargo/registry, ~/.cargo/git, target]
+      - persist_to_workspace:
+          root: dist
+          paths:
+            - "Ferrum-*-macos-*.dmg"
       - store_artifacts:
           path: dist
           destination: macos-<< parameters.target >>
@@ -114,9 +122,36 @@ jobs:
       - save_cache:
           key: "rust-v1-windows-{{ checksum \"Cargo.lock\" }}"
           paths: ['C:\Users\circleci\.cargo\registry', 'C:\Users\circleci\.cargo\git', target]
+      - persist_to_workspace:
+          root: dist
+          paths:
+            - "Ferrum-*-windows-x86_64.zip"
+            - "Ferrum-*-windows-x86_64-setup.exe"
       - store_artifacts:
           path: dist
           destination: windows-x86_64
+
+  publish:
+    docker:
+      - image: cimg/python:3.12
+    resource_class: small
+    steps:
+      - checkout
+      - attach_workspace:
+          at: release-artifacts
+      - run:
+          name: Install GitHub CLI
+          command: sudo apt-get update && sudo apt-get install -y gh
+      - run:
+          name: Test release publishing logic
+          command: python3 -m unittest discover -s packaging -p 'test_*.py' -v
+      - run:
+          name: Publish tagged GitHub release
+          command: python3 packaging/publish_release.py release-artifacts
+          no_output_timeout: 10m
+      - store_artifacts:
+          path: release-artifacts/SHA256SUMS.txt
+          destination: SHA256SUMS.txt
 
 workflows:
   compile-all-platforms:
@@ -127,6 +162,7 @@ workflows:
               only: /^v.*/
       - macos:
           matrix:
+            alias: macos-builds
             parameters:
               target: [aarch64-apple-darwin, x86_64-apple-darwin]
           filters:
@@ -134,5 +170,16 @@ workflows:
               only: /^v.*/
       - windows:
           filters:
+            tags:
+              only: /^v.*/
+      - publish:
+          serial-group: << pipeline.project.slug >>/github-release
+          requires:
+            - linux
+            - windows
+            - macos-builds
+          filters:
+            branches:
+              ignore: /.*/
             tags:
               only: /^v.*/

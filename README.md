@@ -64,12 +64,27 @@ Help → Ferrum help opens this page. Help → About Ferrum shows the installed 
 
 The updater selects a package for the current OS and CPU, checks its size and GitHub SHA-256 digest, then stages it before offering **Install and restart**. macOS additionally checks the app signature, bundle identifier and version. Restart saves the vault and closes terminal sessions. The old build is kept beside the installation as a hidden recovery copy. Installation errors leave a log in the `ferrum-update-*` temporary directory. AppImage and read-only installations can use the GitHub release page to install manually.
 
-To publish an update, bump `package.version` in `Cargo.toml`, refresh `Cargo.lock`, and push the matching `v<version>` tag. The existing GitHub release workflow builds the packages, creates checksums and uploads the release assets. The tag must match the package version.
+To publish an update, bump `package.version` in `Cargo.toml`, refresh `Cargo.lock`, and push the matching `v<version>` tag. CircleCI builds every platform, creates checksums, and publishes a GitHub Release after all builds succeed. The tag must match the package version.
 
 ## CircleCI
 
-`.circleci/config.yml` runs format checks and unit tests, then builds packages for Linux x86_64, Windows x86_64, macOS Apple Silicon and macOS Intel. Packaged builds are stored as CircleCI artifacts. GitHub Actions continues to publish tagged GitHub releases for the updater.
+`.circleci/config.yml` runs format checks and unit tests, then builds packages for Linux x86_64, Windows x86_64, macOS Apple Silicon and macOS Intel. Branch builds store installers as CircleCI artifacts. Tags starting with `v` also run a publishing job after Linux, Windows, Apple Silicon and Intel Mac builds succeed.
 
-Connect `fikrifirmanf/ferrum-ssh` in CircleCI and select the existing `.circleci/config.yml`. The macOS and Windows jobs need access to those CircleCI executors. No release-publishing token is required by these build jobs.
+Connect `fikrifirmanf/ferrum-ssh` in CircleCI and select the existing `.circleci/config.yml`. The macOS and Windows jobs need access to those CircleCI executors.
+
+For automatic releases, add `GH_TOKEN` under **Project Settings → Environment Variables**. Use a fine-grained GitHub personal access token restricted to `fikrifirmanf/ferrum-ssh`, with **Contents: Read and write** permission. Give it an expiration date and rotate it before it expires. Keep it out of source files and build logs. GitHub Actions' release workflow is now a manual packaging fallback and does not publish releases.
+
+After updating the version in `Cargo.toml` and refreshing `Cargo.lock`, commit and push `main`, then create and push the matching tag. For version `0.1.1`:
+
+```sh
+git tag -a v0.1.1 -m "Ferrum v0.1.1"
+git push origin v0.1.1
+```
+
+The publisher checks that the GitHub tag points to the exact commit CircleCI built. It requires every installer, verifies the uploaded digests, and publishes only after all files are present. Failed uploads leave a draft for a retry. Published releases are never overwritten; an identical retry succeeds without changes. Tags such as `v0.2.0-beta.1` are published as preview releases.
+
+The current branch pipeline cannot acquire a new publishing job midway through its run. Automatic publishing starts with a tag pipeline using this updated configuration.
+
+To test the release helper locally, run `python3 -m unittest discover -s packaging -p 'test_*.py' -v`.
 
 For interactive visual checks with disposable demo data, run `FERRUM_QA=interactive cargo run`. This mode keeps the window open and does not save the vault.
