@@ -50,15 +50,12 @@ class FakeGitHub:
             return copy.deepcopy(self.draft)
         raise AssertionError((method, path))
 
-    def command(self, *args):
-        self.calls.append(("command", args))
+    def upload_asset(self, release_id, path):
+        self.calls.append(("upload_asset", release_id, path.name))
         if self.fail_upload:
             raise publisher.ReleaseError("GitHub upload failed")
-        self.draft["assets"] = []
-        for filename in args[3:args.index("--repo")]:
-            path = Path(filename)
-            self.draft["assets"].append({"name": path.name, "size": path.stat().st_size,
-                "digest": "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()})
+        self.draft["assets"].append({"name": path.name, "size": path.stat().st_size,
+            "digest": "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()})
         if self.corrupt_upload:
             self.draft["assets"][0]["digest"] = "sha256:" + "0" * 64
         return ""
@@ -126,7 +123,7 @@ class ReleaseTests(unittest.TestCase):
         self.github.tag_sha = "b" * 40
         with self.assertRaisesRegex(publisher.ReleaseError, "does not point"):
             self.publish()
-        self.assertFalse(any(call[0] in ("POST", "PATCH", "command") for call in self.github.calls))
+        self.assertFalse(any(call[0] in ("POST", "PATCH", "upload_asset") for call in self.github.calls))
 
     def test_failed_upload_leaves_release_as_draft(self):
         self.github.fail_upload = True
@@ -147,7 +144,7 @@ class ReleaseTests(unittest.TestCase):
         self.github.existing = copy.deepcopy(self.github.draft)
         self.github.calls = []
         self.publish()
-        self.assertFalse(any(call[0] in ("POST", "PATCH", "command") for call in self.github.calls))
+        self.assertFalse(any(call[0] in ("POST", "PATCH", "upload_asset") for call in self.github.calls))
 
     def test_published_release_with_different_bytes_is_never_overwritten(self):
         self.publish()
@@ -156,7 +153,7 @@ class ReleaseTests(unittest.TestCase):
         (self.artifacts / NAMES[0]).write_bytes(b"rebuilt installer")
         with self.assertRaises(publisher.ReleaseError):
             self.publish()
-        self.assertFalse(any(call[0] in ("POST", "PATCH", "command") for call in self.github.calls))
+        self.assertFalse(any(call[0] in ("POST", "PATCH", "upload_asset") for call in self.github.calls))
 
     def test_prerelease_tag_is_not_marked_latest(self):
         self.cargo.write_text('[package]\nversion = "1.2.3-beta.1"\n')

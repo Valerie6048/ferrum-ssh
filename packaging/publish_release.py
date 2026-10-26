@@ -45,6 +45,22 @@ class GitHub:
         except json.JSONDecodeError as error:
             raise ReleaseError("GitHub returned an invalid JSON response.") from error
 
+    def upload_asset(self, release_id: int, path: Path) -> None:
+        endpoint = (
+            f"repos/{REPOSITORY}/releases/{release_id}/assets"
+            f"?name={quote(path.name, safe='')}"
+        )
+        try:
+            subprocess.run(
+                ["gh", "api", "--method", "POST", endpoint,
+                 "--header", "Content-Type: application/octet-stream", "--input", str(path)],
+                capture_output=True, text=True, check=True, timeout=300,
+            )
+        except subprocess.CalledProcessError as error:
+            raise ReleaseError(error.stderr.strip() or f"GitHub rejected {path.name}.") from error
+        except (OSError, subprocess.TimeoutExpired) as error:
+            raise ReleaseError("GitHub CLI is unavailable or its request timed out.") from error
+
     def release(self, tag: str) -> dict | None:
         try:
             return self.api("GET", f"repos/{REPOSITORY}/releases/tags/{quote(tag, safe='')}")
@@ -133,8 +149,9 @@ def publish(github: GitHub, directory: Path, cargo: Path, tag: str, commit: str)
     unknown = {a.get("name") for a in release.get("assets", [])} - set(digests)
     if unknown:
         raise ReleaseError("The existing draft contains other files. Review it before retrying.")
-    github.command("release", "upload", tag, *(str(directory / name) for name in digests),
-                   "--repo", REPOSITORY, "--clobber")
+    # unslop-ignore NO_N_PLUS_ONE -- GitHub's asset upload endpoint accepts exactly one binary per request.
+    for name in digests:
+        github.upload_asset(release["id"], directory / name)
     release = github.api("GET", f"repos/{REPOSITORY}/releases/{release['id']}")
     verify_uploads(release, directory, digests)
     published = github.api("PATCH", f"repos/{REPOSITORY}/releases/{release['id']}", {
