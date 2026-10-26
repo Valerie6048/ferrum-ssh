@@ -146,6 +146,9 @@ jobs:
           name: Test release publishing logic
           command: python3 -m unittest discover -s packaging -p 'test_*.py' -v
       - run:
+          name: Remove macOS workspace metadata
+          command: find release-artifacts -type f -name '._*' -delete
+      - run:
           name: Publish tagged GitHub release
           command: python3 packaging/publish_release.py release-artifacts
           no_output_timeout: 10m
