@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Ferrum
+GenericName=SSH client
+Comment=Cross-platform SSH, SFTP, Telnet and serial client
+Exec=ferrum %u
+Icon=ferrum
+Terminal=false
+Categories=Network;RemoteAccess;Utility;
+MimeType=x-scheme-handler/ssh;
+StartupWMClass=ferrum-ssh

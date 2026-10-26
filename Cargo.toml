@@ -1,0 +1,70 @@
+[package]
+name = "ferrum-ssh"
+version = "0.1.0"
+edition = "2024"
+description = "Ferrum — a fast, cross-platform SSH / SFTP / Telnet / Serial / Mosh client written in Rust"
+license = "MIT"
+
+[[bin]]
+name = "ferrum"
+path = "src/main.rs"
+
+[dependencies]
+eframe = { version = "0.37", default-features = false, features = ["clipboard", "default_fonts", "glow", "persistence", "wayland", "x11"] }
+egui = { version = "0.37", features = ["monochrome_emoji_fonts"] }
+egui_extras = "0.37"
+semver = "1"
+tempfile = "3"
+flate2 = "1"
+tar = "0.4"
+zip = { version = "8", default-features = false, features = ["deflate"] }
+russh = "0.65"
+russh-sftp = "3"
+alacritty_terminal = "0.26"
+portable-pty = "0.9"
+serialport = { version = "4", default-features = false }
+tokio = { version = "1", features = ["full"] }
+argon2 = "0.6"
+chacha20poly1305 = "0.11"
+directories = "6"
+rfd = "0.17"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
+anyhow = "1"
+chrono = { version = "0.4", features = ["serde"] }
+rand = "0.9"
+base64 = "0.22"
+parking_lot = "0.12"
+regex = "1"
+log = "0.4"
+env_logger = "0.11"
+arboard = "3"
+shell-words = "1"
+reqwest = { version = "0.13", default-features = false, features = ["json", "form", "rustls"] }
+ssh-key = { version = "=0.7.0-rc.11", features = ["ed25519", "p256", "p384", "p521", "rsa", "encryption", "getrandom", "std"] }
+hmac = "0.12"
+sha2 = "0.10"
+hex = "0.4"
+open = "5"
+bytes = "1"
+encoding_rs = "0.8"
+image = { version = "0.25", default-features = false, features = ["png"] }
+
+[target.'cfg(windows)'.build-dependencies]
+winresource = "0.1"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+window-vibrancy = "0.8.1"
+muda = { version = "0.20", default-features = false }
+raw-window-handle = "0.6"
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["NSView"] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true
+
+[profile.dev.package."*"]
+opt-level = 2
